@@ -1220,16 +1220,108 @@
   .share-instagram-note.active{display:block}
   .share-instagram-note strong{font-weight:700;display:block;margin-bottom:4px;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
 
+  .instagram-options{
+    animation:modalIn .35s cubic-bezier(.16,1,.3,1);
+  }
+  .ig-opt-buttons{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-bottom:24px;
+  }
+  .ig-opt-btn{
+    background:var(--white);
+    border:1.5px solid rgba(126,63,101,.15);
+    padding:18px 24px;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+    font-family:'DM Sans',sans-serif;
+    transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform .2s ease,box-shadow .2s ease;
+    border-radius:10px;
+    text-align:left;
+    width:100%;
+    -webkit-tap-highlight-color:transparent;
+  }
+  @media (hover: hover) {
+    .ig-opt-btn:hover{
+      background:var(--plum);
+      color:var(--cream);
+      border-color:var(--plum);
+      transform:translateY(-2px);
+      box-shadow:0 6px 12px rgba(126,63,101,.15);
+    }
+    .ig-opt-btn:hover .ig-opt-desc{
+      color:rgba(252,245,233,.8);
+    }
+  }
+  .ig-opt-btn:active{
+    background:var(--plum);
+    color:var(--cream);
+    border-color:var(--plum);
+    transform:translateY(0);
+  }
+  .ig-opt-btn:focus{outline:none}
+  .ig-opt-btn:focus-visible{
+    outline:2px solid var(--peach);
+    outline-offset:2px;
+  }
+  .ig-opt-title{
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:inherit;
+  }
+  .ig-opt-desc{
+    font-size:11px;
+    color:var(--rose);
+    font-weight:500;
+    transition:color .2s ease;
+  }
+  .ig-opt-btn:active .ig-opt-desc{
+    color:rgba(252,245,233,.8);
+  }
+  .ig-opt-back{
+    background:transparent;
+    border:none;
+    color:var(--plum);
+    font-family:'DM Sans',sans-serif;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    cursor:pointer;
+    padding:8px 0;
+    transition:color .2s ease;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .ig-opt-back:hover{
+    color:var(--peach);
+  }
+  .ig-opt-back svg{
+    transition:transform .2s ease;
+  }
+  .ig-opt-back:hover svg{
+    transform:translateX(-3px);
+  }
+
   /* Loading state — keep icon visible, just dim slightly with a small spinner-like dot */
-  .share-platform.loading{
+  .share-platform.loading,
+  .ig-opt-btn.loading{
     pointer-events:none;
     opacity:.85;
     position:relative;
   }
-  .share-platform.loading::after{
+  .share-platform.loading::after,
+  .ig-opt-btn.loading::after{
     content:'';
     position:absolute;
-    top:6px;right:6px;
+    top:8px;right:8px;
     width:8px;height:8px;
     border-radius:50%;
     background:var(--peach);
@@ -1639,7 +1731,7 @@
         <button class="share-modal-close" onclick="closeShareModal()" aria-label="Close">✕</button>
       </div>
       <div class="share-modal-body">
-        <div class="share-modal-sub">Pick a platform</div>
+        <div class="share-modal-sub" id="shareModalSub">Pick a platform</div>
         <div class="share-instagram-note" id="igNote">
           <strong>Your card is ready</strong>
           Your result card has been downloaded — post it on Instagram and tag us!
@@ -1676,6 +1768,29 @@
           <button class="share-platform" data-platform="download" onclick="downloadResultImage()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span class="pf-name">Download</span>
+          </button>
+        </div>
+
+        <!-- Instagram Options Panel -->
+        <div class="instagram-options" id="instagramOptions" style="display: none;">
+          <div class="share-modal-sub">Where on Instagram?</div>
+          <div class="ig-opt-buttons">
+            <button class="ig-opt-btn" onclick="shareInstagram('story')">
+              <span class="ig-opt-title">Story</span>
+              <small class="ig-opt-desc">Shares just the picture (no link or text)</small>
+            </button>
+            <button class="ig-opt-btn" onclick="shareInstagram('message')">
+              <span class="ig-opt-title">Message / DM</span>
+              <small class="ig-opt-desc">Shares picture with link and message</small>
+            </button>
+            <button class="ig-opt-btn" onclick="shareInstagram('post')">
+              <span class="ig-opt-title">Post / Reel</span>
+              <small class="ig-opt-desc">Copies caption and shares the picture</small>
+            </button>
+          </div>
+          <button class="ig-opt-back" onclick="showPlatformsList()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; display: inline-block; vertical-align: middle;"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to platforms
           </button>
         </div>
       </div>
@@ -2301,6 +2416,10 @@ function closeShareModal(e){
   document.getElementById('shareModal').classList.remove('active');
   document.getElementById('igNote').classList.remove('active');
   document.body.style.overflow = '';
+  // Reset view to main platforms screen
+  if (typeof showPlatformsList === 'function') {
+    showPlatformsList();
+  }
 }
 
 function getShareMessage(){
@@ -2403,17 +2522,11 @@ async function sharePlatform(platform){
   const noteEl = document.getElementById('igNote');
   if (noteEl){ noteEl.classList.remove('active'); noteEl.innerHTML = ''; }
 
-  // ── Instagram: always download the image + show a guide note ──────────────
+  // ── Instagram: show options sub-menu ──────────────────────────────────────
   if (platform === 'instagram'){
-    if (tile) tile.classList.add('loading');
-    const { blob, filename } = await getResultImageBlob();
-    if (tile) tile.classList.remove('loading');
-    if (blob){
-      await saveBlobToDevice(blob, filename);
-      showShareNote('<strong>Your card is saved!</strong> Open Instagram, create a new post or Story, and attach the downloaded image. Add the caption: "' + shareText + '"');
-    } else {
-      showShareNote('<strong>Couldn\'t save image.</strong> Please take a screenshot of your result card and post it on Instagram.');
-    }
+    document.getElementById('sharePlatforms').style.display = 'none';
+    document.getElementById('shareModalSub').style.display = 'none';
+    document.getElementById('instagramOptions').style.display = 'block';
     return;
   }
 
@@ -2430,6 +2543,10 @@ async function sharePlatform(platform){
         const file = new File([blob], filename, { type: 'image/png' });
         if (navigator.canShare({ files: [file] })){
           try {
+            if (platform === 'threads'){
+              copyToClipboard(shareText);
+              showShareNote('<strong>Text & Link Copied!</strong> If Threads doesn\'t display it automatically, tap and paste it.');
+            }
             await navigator.share({ files: [file], text: shareText });
             return; // Native share with image + text succeeded
           } catch(err){
@@ -2448,6 +2565,86 @@ async function sharePlatform(platform){
   // ── Fallback: open the platform's web intent URL (text + URL only) ─────────
   // This is the only option on desktop browsers for all platforms.
   window.open(buildFallbackUrl(platform), '_blank', 'noopener');
+}
+
+function showPlatformsList(){
+  document.getElementById('instagramOptions').style.display = 'none';
+  document.getElementById('sharePlatforms').style.display = '';
+  document.getElementById('shareModalSub').style.display = '';
+  const noteEl = document.getElementById('igNote');
+  if (noteEl){ noteEl.classList.remove('active'); noteEl.innerHTML = ''; }
+}
+
+async function shareInstagram(option){
+  const shareText = getShareMessage();
+  const noteEl = document.getElementById('igNote');
+  if (noteEl){ noteEl.classList.remove('active'); noteEl.innerHTML = ''; }
+
+  const buttons = document.querySelectorAll('.ig-opt-btn');
+  buttons.forEach(btn => btn.classList.add('loading'));
+
+  try {
+    const { blob, filename } = await getResultImageBlob();
+    buttons.forEach(btn => btn.classList.remove('loading'));
+
+    if (!blob){
+      showShareNote('<strong>Capture Failed</strong> Could not generate result image. Please take a screenshot of your result.');
+      return;
+    }
+
+    const file = new File([blob], filename, { type: 'image/png' });
+    const canUseNativeShare = navigator.share && navigator.canShare && navigator.canShare({ files: [file] });
+
+    if (option === 'story'){
+      if (canUseNativeShare){
+        try {
+          await navigator.share({ files: [file] });
+          showShareNote('<strong>Story:</strong> Image sent to share sheet. Post it as a Story!');
+        } catch(err){
+          if (err && err.name === 'AbortError') return;
+          await saveBlobToDevice(blob, filename);
+          showShareNote('<strong>Story:</strong> Image downloaded. Open Instagram and post it to your Story!');
+        }
+      } else {
+        await saveBlobToDevice(blob, filename);
+        showShareNote('<strong>Story:</strong> Image downloaded. Open Instagram and post it to your Story!');
+      }
+    } else if (option === 'message'){
+      if (canUseNativeShare){
+        try {
+          await navigator.share({ files: [file], text: shareText });
+          showShareNote('<strong>Message:</strong> Sharing image and link to your Instagram DMs!');
+        } catch(err){
+          if (err && err.name === 'AbortError') return;
+          await saveBlobToDevice(blob, filename);
+          copyToClipboard(shareText);
+          showShareNote('<strong>Message:</strong> Image downloaded & message copied! Share it with friends on Instagram.');
+        }
+      } else {
+        await saveBlobToDevice(blob, filename);
+        copyToClipboard(shareText);
+        showShareNote('<strong>Message:</strong> Image downloaded & message copied! Share it with friends on Instagram.');
+      }
+    } else if (option === 'post'){
+      copyToClipboard(shareText);
+      if (canUseNativeShare){
+        try {
+          await navigator.share({ files: [file] });
+          showShareNote('<strong>Post / Reel:</strong> Caption copied! Choose Post/Reel in Instagram and paste the caption.');
+        } catch(err){
+          if (err && err.name === 'AbortError') return;
+          await saveBlobToDevice(blob, filename);
+          showShareNote('<strong>Post / Reel:</strong> Caption copied & image saved! Open Instagram, select the image, and paste the caption.');
+        }
+      } else {
+        await saveBlobToDevice(blob, filename);
+        showShareNote('<strong>Post / Reel:</strong> Caption copied & image saved! Open Instagram, select the image, and paste the caption.');
+      }
+    }
+  } catch(e){
+    buttons.forEach(btn => btn.classList.remove('loading'));
+    showShareNote('<strong>Error:</strong> Something went wrong. Please take a screenshot of your result.');
+  }
 }
 
 // Shared capture-and-save helper used by Instagram and Download
@@ -2558,11 +2755,10 @@ function downloadAsPDF(){
   closeShareModal({target: document.getElementById('shareModal')});
 }
 
-function copyLink(){
-  const shareText = getShareMessage();
+function copyToClipboard(text){
   const fallback = () => {
     const ta = document.createElement('textarea');
-    ta.value = shareText;
+    ta.value = text;
     ta.style.position = 'fixed';
     ta.style.left = '-9999px';
     document.body.appendChild(ta);
@@ -2571,13 +2767,20 @@ function copyLink(){
     document.body.removeChild(ta);
   };
   if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(shareText).catch(fallback);
+    navigator.clipboard.writeText(text).catch(fallback);
   } else {
     fallback();
   }
+}
+
+function copyLink(){
+  const shareText = getShareMessage();
+  copyToClipboard(shareText);
   const btn = document.getElementById('copyBtn');
-  btn.textContent = '✓ Copied!';
-  setTimeout(() => btn.innerHTML = '⎘ Copy link', 1800);
+  if (btn){
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.innerHTML = '⎘ Copy link', 1800);
+  }
 }
 
 // Escape key closes modal
