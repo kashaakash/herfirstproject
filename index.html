@@ -4,6 +4,17 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Which Hormone Heroine Are You? — Live Gracious</title>
+
+<!-- Open Graph / Social sharing meta tags -->
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://kashaakash.github.io/herfirstproject/" />
+<meta property="og:title" content="Which Hormone Heroine Are You? — Live Gracious" />
+<meta property="og:description" content="Every woman has an archetype — the way her body, hormones, and heart move through the world. Find yours in three minutes." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Which Hormone Heroine Are You? — Live Gracious" />
+<meta name="twitter:description" content="Every woman has an archetype — the way her body, hormones, and heart move through the world. Find yours in three minutes." />
+<meta name="description" content="Every woman has an archetype — the way her body, hormones, and heart move through the world. Find yours in three minutes." />
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&family=DM+Sans:wght@300;400;500;600;700;800;900&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -2177,7 +2188,16 @@ function showResult(){
   const hint = document.getElementById('scrollHint');
   if (hint) hint.classList.remove('hidden');
 
+  // Reset pre-gen cache so fresh image is generated for this result
+  _preGenBlob = null;
+  _preGenFilename = null;
+  _preGenInProgress = false;
+
   switchScreen('screen-result');
+
+  // Start pre-generating the result image in the background immediately.
+  // By the time the user scrolls down and clicks Share, the image is ready.
+  setTimeout(() => preGenerateResultImage(), 800);
 }
 
 // Hide scroll hint on first scroll
@@ -2203,48 +2223,77 @@ function submitEmail(){
 }
 
 /* ============ CONFIG ============ */
-// Replace with your live result page URL when launching.
-const SHARE_URL = 'https://www.example.com';
+const SHARE_URL = 'https://kashaakash.github.io/herfirstproject/';
 
-async function shareResult(){
-  const heroineDisplayText = document.getElementById('heroineDisplay').textContent;
-  const filename = `hormone-heroine-${heroineDisplayText.toLowerCase().replace(/\s+/g, '-')}.png`;
-  const shareText = getShareMessage();
+// Pre-generated image blob — populated as soon as the result screen loads
+// so the share modal opens instantly without waiting for html2canvas.
+let _preGenBlob = null;
+let _preGenFilename = null;
+let _preGenInProgress = false;
 
-  // Try native share sheet with image file first (Android Chrome, iOS Safari 15+)
+async function preGenerateResultImage(){
+  if (_preGenInProgress || _preGenBlob) return;
+  _preGenInProgress = true;
   try {
+    const heroineDisplayText = document.getElementById('heroineDisplay').textContent;
+    _preGenFilename = `hormone-heroine-${heroineDisplayText.toLowerCase().replace(/\s+/g, '-')}.png`;
     const canvas = await captureResultCard();
     if (canvas){
       const blob = await canvasToBlob(canvas);
       if (blob && blob.size > 0){
+        _preGenBlob = blob;
+      }
+    }
+  } catch(e){}
+  _preGenInProgress = false;
+}
+
+// Returns { blob, filename } from pre-gen cache, or captures fresh if not ready.
+async function getResultImageBlob(){
+  const heroineDisplayText = document.getElementById('heroineDisplay').textContent;
+  const filename = _preGenFilename || `hormone-heroine-${heroineDisplayText.toLowerCase().replace(/\s+/g, '-')}.png`;
+  if (_preGenBlob) return { blob: _preGenBlob, filename };
+  // Not ready yet — capture now
+  try {
+    const canvas = await captureResultCard();
+    if (canvas){
+      const blob = await canvasToBlob(canvas);
+      if (blob && blob.size > 0) return { blob, filename };
+    }
+  } catch(e){}
+  return { blob: null, filename };
+}
+
+async function shareResult(){
+  const shareText = getShareMessage();
+
+  // On mobile with Web Share API + file support: try native share with image first.
+  // This gives the best experience on Android/iOS (image + text in one action).
+  if (navigator.share && navigator.canShare){
+    try {
+      const { blob, filename } = await getResultImageBlob();
+      if (blob){
         const file = new File([blob], filename, { type: 'image/png' });
-        console.log('IMAGE SHARE PATH REACHED');
-        console.log(file);
-        console.log(navigator.canShare ? navigator.canShare({ files: [file] }) : 'no canShare');
-        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share){
+        if (navigator.canShare({ files: [file] })){
           try {
-            await navigator.share({
-              files: [file],
-              text: shareText,
-              url: SHARE_URL
-            });
-            return; // Native share succeeded — don't open modal
+            await navigator.share({ files: [file], text: shareText, url: SHARE_URL });
+            return; // Native share with image succeeded — done
           } catch(err){
-            // User cancelled — don't open modal, don't show error
-            if (err && err.name === 'AbortError') return;
-            // Other share error — fall through to modal
+            if (err && err.name === 'AbortError') return; // user cancelled
+            // Other error — fall through to modal
           }
         }
       }
+    } catch(e){
+      // Fall through to modal
     }
-  } catch(err){
-    // Capture failed — fall through to modal
   }
 
-  // Fallback: open the share modal with platform buttons
+  // Desktop or fallback: open the share modal with platform buttons immediately.
+  document.getElementById('igNote').classList.remove('active');
+  document.getElementById('igNote').innerHTML = '';
   document.getElementById('shareModal').classList.add('active');
   document.body.style.overflow = 'hidden';
-  document.getElementById('igNote').classList.remove('active');
 }
 
 function closeShareModal(e){
@@ -2256,12 +2305,12 @@ function closeShareModal(e){
 
 function getShareMessage(){
   const heroineDisplayText = document.getElementById('heroineDisplay').textContent;
-  return `I just took the Live Gracious Hormone Heroine quiz — I'm The ${heroineDisplayText}. Find yours: ${SHARE_URL}`;
+  return `I just took the Live Gracious Hormone Heroine quiz — I'm The ${heroineDisplayText}. Find yours at: ${SHARE_URL}`;
 }
 
 function buildFallbackUrl(platform){
   const heroineDisplayText = document.getElementById('heroineDisplay').textContent;
-  const msg = `I just took the Live Gracious Hormone Heroine quiz — I'm The ${heroineDisplayText}. Find yours:`;
+  const msg = `I just took the Live Gracious Hormone Heroine quiz — I'm The ${heroineDisplayText}. Find yours at:`;
   const url = SHARE_URL;
   const encMsg = encodeURIComponent(msg);
   const encUrl = encodeURIComponent(url);
@@ -2269,7 +2318,7 @@ function buildFallbackUrl(platform){
   switch(platform){
     case 'whatsapp': return `https://wa.me/?text=${encFull}`;
     case 'twitter':  return `https://twitter.com/intent/tweet?text=${encMsg}&url=${encUrl}`;
-    case 'facebook': return `https://www.facebook.com/sharer/sharer.php?u=${encUrl}&quote=${encMsg}`;
+    case 'facebook': return `https://www.facebook.com/sharer/sharer.php?u=${encUrl}`;
     case 'threads':  return `https://www.threads.net/intent/post?text=${encFull}`;
     case 'telegram': return `https://t.me/share/url?url=${encUrl}&text=${encMsg}`;
     case 'linkedin': return `https://www.linkedin.com/sharing/share-offsite/?url=${encUrl}`;
@@ -2346,49 +2395,58 @@ function showShareNote(html){
 // Attempts native share with PNG file + text + url first. Only falls back to
 // platform URLs when file-sharing is unavailable.
 async function sharePlatform(platform){
-  const heroineDisplayText = document.getElementById('heroineDisplay').textContent;
-  const filename = `hormone-heroine-${heroineDisplayText.toLowerCase().replace(/\s+/g, '-')}.png`;
   const shareText = getShareMessage();
   const tile = document.querySelector(`.share-platform[data-platform="${platform}"]`);
 
-  // Clear focus to prevent iOS sticky-hover; clear any previous note
+  // Clear focus (prevents iOS sticky-hover) and clear any previous note
   if (tile && tile.blur) tile.blur();
   const noteEl = document.getElementById('igNote');
   if (noteEl){ noteEl.classList.remove('active'); noteEl.innerHTML = ''; }
 
-  // Attempt native share with file first (Android Chrome, iOS Safari 15+)
-  if (tile) tile.classList.add('loading');
-  try {
-    const canvas = await captureResultCard();
-    if (canvas){
-      const blob = await canvasToBlob(canvas);
-      if (blob && blob.size > 0){
+  // ── Instagram: always download the image + show a guide note ──────────────
+  if (platform === 'instagram'){
+    if (tile) tile.classList.add('loading');
+    const { blob, filename } = await getResultImageBlob();
+    if (tile) tile.classList.remove('loading');
+    if (blob){
+      await saveBlobToDevice(blob, filename);
+      showShareNote('<strong>Your card is saved!</strong> Open Instagram, create a new post or Story, and attach the downloaded image. Add the caption: "' + shareText + '"');
+    } else {
+      showShareNote('<strong>Couldn\'t save image.</strong> Please take a screenshot of your result card and post it on Instagram.');
+    }
+    return;
+  }
+
+  // ── Platforms that support image via Web Share API (mobile only) ───────────
+  // WhatsApp on Android/iOS will receive the image + text together.
+  // On desktop these platforms only get text — that is a platform limitation.
+  const imageCapablePlatforms = ['whatsapp', 'telegram', 'twitter', 'threads', 'facebook', 'linkedin'];
+  if (imageCapablePlatforms.includes(platform) && navigator.share && navigator.canShare){
+    try {
+      if (tile) tile.classList.add('loading');
+      const { blob, filename } = await getResultImageBlob();
+      if (tile) tile.classList.remove('loading');
+      if (blob){
         const file = new File([blob], filename, { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share){
+        if (navigator.canShare({ files: [file] })){
           try {
-            await navigator.share({
-              files: [file],
-              text: shareText,
-              url: SHARE_URL
-            });
-            if (tile) tile.classList.remove('loading');
-            return; // Native share with image succeeded
+            await navigator.share({ files: [file], text: shareText, url: SHARE_URL });
+            return; // Native share with image + text succeeded
           } catch(err){
-            if (tile) tile.classList.remove('loading');
             if (err && err.name === 'AbortError') return; // user cancelled
-            // Other share error — fall through to platform URL
+            // Other error — fall through to URL intent below
           }
         }
       }
+    } catch(e){
+      if (tile) tile.classList.remove('loading');
     }
-  } catch(err){
-    // Capture failed — fall through to platform URL
   }
+
   if (tile) tile.classList.remove('loading');
 
-  // Fallback: open platform web intent URL (text + link only)
-  console.log('FALLBACK URL PATH REACHED');
-  console.log(platform);
+  // ── Fallback: open the platform's web intent URL (text + URL only) ─────────
+  // This is the only option on desktop browsers for all platforms.
   window.open(buildFallbackUrl(platform), '_blank', 'noopener');
 }
 
@@ -2501,9 +2559,10 @@ function downloadAsPDF(){
 }
 
 function copyLink(){
+  const shareText = getShareMessage();
   const fallback = () => {
     const ta = document.createElement('textarea');
-    ta.value = SHARE_URL;
+    ta.value = shareText;
     ta.style.position = 'fixed';
     ta.style.left = '-9999px';
     document.body.appendChild(ta);
@@ -2512,12 +2571,12 @@ function copyLink(){
     document.body.removeChild(ta);
   };
   if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(SHARE_URL).catch(fallback);
+    navigator.clipboard.writeText(shareText).catch(fallback);
   } else {
     fallback();
   }
   const btn = document.getElementById('copyBtn');
-  btn.textContent = '✓ Copied';
+  btn.textContent = '✓ Copied!';
   setTimeout(() => btn.innerHTML = '⎘ Copy link', 1800);
 }
 
