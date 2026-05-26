@@ -2610,19 +2610,18 @@ async function shareInstagram(option){
         showShareNote('<strong>Story:</strong> Image downloaded. Open Instagram and post it to your Story!');
       }
     } else if (option === 'message'){
+      copyToClipboard(shareText);
       if (canUseNativeShare){
         try {
           await navigator.share({ files: [file], text: shareText });
-          showShareNote('<strong>Message:</strong> Sharing image and link to your Instagram DMs!');
+          showShareNote('<strong>Message:</strong> Link copied! If Instagram doesn\'t display it automatically, tap and paste.');
         } catch(err){
           if (err && err.name === 'AbortError') return;
           await saveBlobToDevice(blob, filename);
-          copyToClipboard(shareText);
           showShareNote('<strong>Message:</strong> Image downloaded & message copied! Share it with friends on Instagram.');
         }
       } else {
         await saveBlobToDevice(blob, filename);
-        copyToClipboard(shareText);
         showShareNote('<strong>Message:</strong> Image downloaded & message copied! Share it with friends on Instagram.');
       }
     } else if (option === 'post'){
