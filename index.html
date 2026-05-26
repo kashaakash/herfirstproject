@@ -2276,7 +2276,7 @@ async function shareResult(){
         const file = new File([blob], filename, { type: 'image/png' });
         if (navigator.canShare({ files: [file] })){
           try {
-            await navigator.share({ files: [file], text: shareText, url: SHARE_URL });
+            await navigator.share({ files: [file], text: shareText });
             return; // Native share with image succeeded — done
           } catch(err){
             if (err && err.name === 'AbortError') return; // user cancelled
@@ -2430,7 +2430,7 @@ async function sharePlatform(platform){
         const file = new File([blob], filename, { type: 'image/png' });
         if (navigator.canShare({ files: [file] })){
           try {
-            await navigator.share({ files: [file], text: shareText, url: SHARE_URL });
+            await navigator.share({ files: [file], text: shareText });
             return; // Native share with image + text succeeded
           } catch(err){
             if (err && err.name === 'AbortError') return; // user cancelled
